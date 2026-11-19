@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Prefer .venv (editable install), fall back to venv
+if [ -d "$SCRIPT_DIR/.venv" ]; then
+  source "$SCRIPT_DIR/.venv/bin/activate"
+elif [ -d "$SCRIPT_DIR/venv" ]; then
+  source "$SCRIPT_DIR/venv/bin/activate"
+else
+  echo "No virtualenv found - create one: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -e ." >&2
+  exit 1
+fi
+
+# python -m gca requires the repo root as CWD so the package is importable
+cd "$SCRIPT_DIR"
+exec python3 -m gca "$@"
