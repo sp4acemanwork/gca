@@ -70,6 +70,10 @@ class MenuScreen(Screen[None]):
         Binding("d", "toggle_difficulty", "Difficulty"),
         Binding("s", "show_stats", "Stats"),
         Binding("escape", "app.pop_screen", "Back"),
+        Binding("j", "vim_down", "Down", show=False),
+        Binding("k", "vim_up", "Up", show=False),
+        Binding("g", "vim_top", "Top", show=False),
+        Binding("G", "vim_bottom", "Bottom", show=False),
     ]
     LEVEL_NAMES: tuple[str, ...] = ("Auto", "1", "2", "3", "4", "5")
 
@@ -89,10 +93,25 @@ class MenuScreen(Screen[None]):
     def on_mount(self) -> None:
         self._rebuild_list()
 
+    def _list(self) -> ListView:
+        return self.query_one("#menu-list", ListView)
+
+    def action_vim_down(self) -> None:
+        self._list().action_cursor_down()
+
+    def action_vim_up(self) -> None:
+        self._list().action_cursor_up()
+
+    def action_vim_top(self) -> None:
+        self._list().index = 0
+
+    def action_vim_bottom(self) -> None:
+        self._list().index = len(self._list()) - 1
+
     def _header_text(self) -> str:
         mode = self.LEVEL_NAMES[self.difficulty_index]
         return (
-            f" Pick a track/topic and press Enter. "
+            f" Pick a track/topic and press Enter. [b]j/k[/b] navigate, [b]g/G[/b] top/bottom - "
             f"[b]d[/b] difficulty: [b]{mode}[/b] - "
             f"[b]s[/b] stats - {self.session_length} questions/session"
         )
@@ -344,10 +363,39 @@ class PracticeScreen(Screen[None]):
         self.app.pop_screen()
 
 
-class SummaryScreen(Screen[None]):
-    """End-of-session breakdown."""
+class VimScrollScreen(Screen[None]):
+    """Base screen adding vim-style scrolling (j/k lines, g/G top/bottom).
+
+    Subclasses must compose exactly one scrollable container.
+    """
 
     BINDINGS = [
+        Binding("j", "vim_down", "Scroll down", show=False),
+        Binding("k", "vim_up", "Scroll up", show=False),
+        Binding("g", "vim_top", "Top", show=False),
+        Binding("G", "vim_bottom", "Bottom", show=False),
+    ]
+
+    def _scroller(self) -> VerticalScroll:
+        return self.query_one(VerticalScroll)
+
+    def action_vim_down(self) -> None:
+        self._scroller().scroll_down()
+
+    def action_vim_up(self) -> None:
+        self._scroller().scroll_up()
+
+    def action_vim_top(self) -> None:
+        self._scroller().scroll_home()
+
+    def action_vim_bottom(self) -> None:
+        self._scroller().scroll_end()
+
+
+class SummaryScreen(VimScrollScreen):
+    """End-of-session breakdown."""
+
+    BINDINGS = VimScrollScreen.BINDINGS + [
         Binding("escape", "back", "Back"),
         Binding("r", "repeat", "Run again"),
     ]
@@ -413,10 +461,10 @@ class SummaryScreen(Screen[None]):
         )
 
 
-class StatsScreen(Screen[None]):
+class StatsScreen(VimScrollScreen):
     """Overall progress across all topics."""
 
-    BINDINGS = [Binding("escape", "back", "Back")]
+    BINDINGS = VimScrollScreen.BINDINGS + [Binding("escape", "back", "Back")]
 
     def __init__(self, stats: Stats) -> None:
         super().__init__()
